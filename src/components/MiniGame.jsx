@@ -22,6 +22,10 @@ const MiniGame = () => {
   const crashCheckRef = useRef(null);
   const gameOver = useRef(false);
 
+  useEffect(() => {
+    setCurrentIndex(0)
+  }, [])
+
   let patternIndex = 6;
 
   function generateInitialPlatforms() {
@@ -163,13 +167,9 @@ useEffect(() => {
   if (currentIndex === 0) {
     return (
       <View style={styles.container}>
-        <View style={{ width: '100%', alignItems: 'center', padding: 20, paddingTop: height * 0.07 }}>
-          <TouchableOpacity
-            style={[styles.btn, { alignSelf: 'flex-end', width: 53, height: 53 }]}
-            onPress={() => navigation.navigate('StoreScreen')}
-          >
-            <Image source={require('../assets/icons/store.png')} style={{ width: 39, height: 40, resizeMode: 'contain' }} />
-          </TouchableOpacity>
+        <View style={{ width: '100%', alignItems: 'center', paddingHorizontal: 20 }}>
+
+          <View style={{height: 44}} />
 
           <Image
             source={require('../assets/decor/logo.png')}
