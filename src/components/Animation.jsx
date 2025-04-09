@@ -52,30 +52,30 @@ const Animation = () => {
 const styles = StyleSheet.create({
 
     container: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
         
     logo: {
-      width: 190,
-      height: 150,
-      marginBottom: 70,
+        width: 190,
+        height: 150,
+        marginBottom: 70,
     },
     
     image: {
-      width: 180,
-      height: 130,
-      resizeMode: 'contain',
-      position: 'absolute'
+        width: 180,
+        height: 130,
+        resizeMode: 'contain',
+        position: 'absolute'
     },
     
     text: {
-      fontSize: 53,
-      fontWeight: '800',
-      lineHeight: 63,
-      color: '#000',
-      marginVertical: 5,
+        fontSize: 53,
+        fontWeight: '800',
+        lineHeight: 63,
+        color: '#000',
+        marginVertical: 5,
     },
   
 });

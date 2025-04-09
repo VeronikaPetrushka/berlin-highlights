@@ -40,41 +40,41 @@ const Welcome = () => {
 
 const styles = StyleSheet.create({
 
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 20
-  },
+    container: {
+        flex: 1,
+        alignItems: 'center',
+        padding: 20
+    },
 
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#000',
-    position: 'absolute',
-    top: height * 0.12,
-    alignSelf: 'center'
-  },
-  
-  text: {
-    fontSize: 53,
-    fontWeight: '800',
-    lineHeight: '120%',
-    color: '#000',
-    marginVertical: 5,
-  },
+    title: {
+        fontSize: 24,
+        fontWeight: '600',
+        color: '#000',
+        position: 'absolute',
+        top: height * 0.12,
+        alignSelf: 'center'
+    },
+    
+    text: {
+        fontSize: 53,
+        fontWeight: '800',
+        lineHeight: '120%',
+        color: '#000',
+        marginVertical: 5,
+    },
 
-  btn: {
-    width: 78,
-    height: 53,
-    backgroundColor: '#ff515b',
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'absolute',
-    bottom: 10,
-    right: '7%'
-  }
-  
+    btn: {
+        width: 78,
+        height: 53,
+        backgroundColor: '#ff515b',
+        borderRadius: 7,
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'absolute',
+        bottom: 10,
+        right: '7%'
+    }
+    
 });
 
 export default Welcome;
