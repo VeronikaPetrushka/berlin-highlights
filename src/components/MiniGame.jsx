@@ -2,13 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, TouchableOpacity, Image, StyleSheet, Dimensions, Text, Animated, Easing, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 const horizontalPlatform = require('../assets/game/horizontal.png');
 const verticalPlatform = require('../assets/game/vertical.png');
 const coin = require('../assets/game/coin.png');
 const runnerImage = require('../assets/game/runner.png');
-const pauseIcon = require('../assets/game/pause.png');
 
 const MiniGame = () => {
   const navigation = useNavigation();
@@ -18,168 +17,179 @@ const MiniGame = () => {
   const [jumping, setJumping] = useState(false);
   const [runnerPosition, setRunnerPosition] = useState({ x: 50, y: height * 0.6 });
   const [coins, setCoins] = useState(0);
-  const [timer, setTimer] = useState(3);
-  const timerRef = useRef(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const moveIntervalRef = useRef(null);
+  const crashCheckRef = useRef(null);
   const gameOver = useRef(false);
-    
-    useEffect(() => {
-  const moveInterval = setInterval(() => {
-    if (gameOver.current) return;
 
-    setPlatforms((prevPlatforms) => {
-      const updatedPlatforms = prevPlatforms.map((p) => ({
-        ...p,
-        x: p.x - 2,
-      }));
-
-      // Remove platforms off-screen and generate new ones
-      if (updatedPlatforms.length && updatedPlatforms[0].x < -100) {
-        updatedPlatforms.shift(); // remove first
-        updatedPlatforms.push({
-          type: Math.random() > 0.5 ? 'horizontal' : 'vertical',
-          x: updatedPlatforms[updatedPlatforms.length - 1].x + 120,
-          y: height * 0.6,
-          hasCoin: Math.random() > 0.5,
-        });
-      }
-
-      return updatedPlatforms;
-    });
-  }, 16);
-
-  return () => clearInterval(moveInterval);
-}, []);
+  let patternIndex = 6;
 
   function generateInitialPlatforms() {
-    return new Array(4).fill(null).map((_, i) => ({
-      type: i % 2 === 0 ? 'horizontal' : 'vertical',
+    const pattern = ['horizontal', 'horizontal', 'vertical'];
+    return new Array(6).fill(null).map((_, i) => ({
+      type: pattern[i % pattern.length],
       x: 100 + i * 120,
       y: height * 0.6,
       hasCoin: Math.random() > 0.5,
     }));
   }
 
-  const togglePlatformTypes = () => {
-    setPlatforms((prev) =>
-      prev.map((p) => ({ ...p, type: p.type === 'horizontal' ? 'vertical' : 'horizontal' }))
-    );
-  };
-    
-    useEffect(() => {
-        const id = runnerY.addListener(({ value }) => {
-            setRunnerPosition((pos) => ({ ...pos, y: height * 0.6 + value }));
+useEffect(() => {
+  if (isPaused) return;
+
+  moveIntervalRef.current = setInterval(() => {
+    if (gameOver.current) return;
+
+    setPlatforms((prevPlatforms) => {
+      const updated = prevPlatforms.map((p) => ({ ...p, x: p.x - 4 }));
+
+      if (updated.length && updated[0].x < -100) {
+        updated.shift();
+
+        const prev = updated[updated.length - 1];
+        const pattern = ['horizontal', 'horizontal', 'vertical'];
+        const newType = pattern[patternIndex % pattern.length];
+
+        updated.push({
+          type: newType,
+          x: prev.x + 120,
+          y: height * 0.6,
+          hasCoin: Math.random() > 0.5,
         });
 
-        return () => runnerY.removeListener(id);
-    }, []);
+        patternIndex++;
+      }
 
-    useEffect(() => {
-        timerRef.current = setInterval(() => {
-        setTimer((prev) => {
-            if (prev === 1) {
-            togglePlatformTypes();
-            return 3;
-            }
-            return prev - 1;
-        });
-        }, 1000);
+      return updated;
+    });
+  }, 16);
 
-        return () => clearInterval(timerRef.current);
-    }, []);
+  return () => clearInterval(moveIntervalRef.current);
+}, [isPaused]);
 
-    const checkLanding = () => {
-        const landedPlatform = platforms.find(
-            (p) =>
-            p.x < runnerPosition.x + 40 &&
-            p.x + 60 > runnerPosition.x + 20
+useEffect(() => {
+  if (isPaused) return;
+
+  crashCheckRef.current = setInterval(() => {
+    if (gameOver.current) return;
+
+    const underRunner = platforms.find((p) => {
+      const width = p.type === 'horizontal' ? 100 : 18;
+      return p.x < runnerPosition.x + 40 && p.x + width > runnerPosition.x + 20;
+    });
+
+    if (!underRunner) {
+      gameOver.current = true;
+      Alert.alert('Game Over', 'You fell between platforms!');
+      return;
+    }
+
+    if (underRunner.type === 'vertical' && !jumping) {
+      gameOver.current = true;
+      Alert.alert('Game Over', 'You hit a vertical platform!');
+      return;
+    }
+
+    if (underRunner.hasCoin) {
+      const coinCenter = underRunner.x + (underRunner.type === 'horizontal' ? 40 : 5);
+      const runnerCenter = runnerPosition.x + 25;
+
+      if (Math.abs(coinCenter - runnerCenter) < 30) {
+        setCoins((prev) => prev + 1);
+        setPlatforms((prev) =>
+          prev.map((p) =>
+            p === underRunner ? { ...p, hasCoin: false } : p
+          )
         );
+      }
+    }
+  }, 100);
 
-        if (!landedPlatform || landedPlatform.type !== 'horizontal') {
-            gameOver.current = true;
-            Alert.alert('Game Over', 'You missed or landed on a vertical platform');
-        } else {
-            if (landedPlatform.hasCoin) {
-            setCoins((prev) => prev + 1);
-            landedPlatform.hasCoin = false;
-            }
-        }
-    };
-
-    const handleJump = () => {
-        if (jumping || gameOver.current) return;
-
-        setJumping(true);
-        Animated.sequence([
-            Animated.timing(runnerY, {
-            toValue: -80,
-            duration: 300,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
-            }),
-            Animated.timing(runnerY, {
-            toValue: 0,
-            duration: 300,
-            easing: Easing.in(Easing.quad),
-            useNativeDriver: true,
-            }),
-        ]).start(() => {
-            setJumping(false);
-            checkLanding();
-        });
-    };
+  return () => clearInterval(crashCheckRef.current);
+}, [isPaused, platforms, jumping, runnerPosition]);
 
   useEffect(() => {
-    const moveInterval = setInterval(() => {
-      setPlatforms((prev) => {
-        const updated = prev.map((p) => ({ ...p, x: p.x - 2 }));
+    const id = runnerY.addListener(({ value }) => {
+      setRunnerPosition((pos) => ({ ...pos, y: height * 0.6 + value }));
+    });
 
-        const underRunner = updated.find(
-          (p) => p.x < runnerPosition.x + 40 && p.x + 60 > runnerPosition.x + 20
+    return () => runnerY.removeListener(id);
+  }, []);
+
+  const checkLanding = () => {
+    const landedPlatform = platforms.find((p) => {
+      const platformWidth = p.type === 'horizontal' ? 100 : 18;
+      return p.x < runnerPosition.x + 40 && p.x + platformWidth > runnerPosition.x + 20;
+    });
+
+    if (landedPlatform && landedPlatform.hasCoin) {
+      const coinCenter = landedPlatform.x + (landedPlatform.type === 'horizontal' ? 40 : 5);
+      const runnerCenter = runnerPosition.x + 25;
+
+      if (Math.abs(coinCenter - runnerCenter) < 30) {
+        setCoins((prev) => prev + 1);
+        setPlatforms((prev) =>
+          prev.map((p) =>
+            p === landedPlatform ? { ...p, hasCoin: false } : p
+          )
         );
+      }
+    }
+  };
 
-        if (underRunner) {
-          if (underRunner.type === 'vertical' && !jumping) {
-            clearInterval(moveInterval);
-            Alert.alert('Lose');
-          }
-          if (underRunner.hasCoin) {
-            setCoins((prev) => prev + 1);
-            underRunner.hasCoin = false;
-          }
-        } else {
-          clearInterval(moveInterval);
-          Alert.alert('Lose');
-        }
+  const handleJump = () => {
+    if (jumping || gameOver.current) return;
 
-        return updated;
-      });
-    }, 16);
-
-    return () => clearInterval(moveInterval);
-  }, [jumping]);
+    setJumping(true);
+    Animated.sequence([
+      Animated.timing(runnerY, {
+        toValue: -80,
+        duration: 300,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(runnerY, {
+        toValue: 0,
+        duration: 300,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setJumping(false);
+      setTimeout(() => checkLanding(), 50);
+    });
+  };
 
   if (currentIndex === 0) {
     return (
       <View style={styles.container}>
-            {
-                currentIndex === 0 && (
-                    <View style={{width: '100%', alignItems: 'center', padding: 20, paddingTop: height * 0.07}}>
+        <View style={{ width: '100%', alignItems: 'center', padding: 20, paddingTop: height * 0.07 }}>
+          <TouchableOpacity
+            style={[styles.btn, { alignSelf: 'flex-end', width: 53, height: 53 }]}
+            onPress={() => navigation.navigate('StoreScreen')}
+          >
+            <Image source={require('../assets/icons/store.png')} style={{ width: 39, height: 40, resizeMode: 'contain' }} />
+          </TouchableOpacity>
 
-                        <TouchableOpacity style={[styles.btn, {alignSelf: 'flex-end', width: 53, height: 53}]} onPress={() => navigation.navigate('StoreScreen')}>
-                            <Image source={require('../assets/icons/store.png')} style={{width: 39, height: 40, resizeMode: 'contain'}} />
-                        </TouchableOpacity>
+          <Image
+            source={require('../assets/decor/logo.png')}
+            style={{
+              width: 135,
+              height: height * 0.11,
+              resizeMode: 'contain',
+              marginBottom: height * 0.05,
+              marginTop: 20,
+            }}
+          />
 
-                        <Image source={require('../assets/decor/logo.png')} style={{width: 135, height: height * 0.11, resizeMode: 'contain', marginBottom: height * 0.05, marginTop: 20}} />
-                        
-                        <Text style={[styles.text, {marginBottom: height * 0.06}]}>Get ready for an exciting adventure across the platforms of Berlin! 🏙️ Your goal is to jump over vertical platforms ⬆️ and land on horizontal ones ⬇️, avoiding dangers ⚠️ along the way. Every 3 seconds ⏱️, the platforms change position 🔄, so always stay alert! 👀</Text>
+          <Text style={[styles.text, { marginBottom: height * 0.06 }]}>
+            Get ready for an exciting adventure across the platforms of Berlin! 🏙️ Your goal is to jump over vertical platforms ⬆️ and land on horizontal ones ⬇️, avoiding dangers ⚠️ along the way. Every 3 seconds ⏱️, the platforms change position 🔄, so always stay alert! 👀
+          </Text>
 
-                        <TouchableOpacity style={styles.btn} onPress={() => setCurrentIndex((prev) => prev + 1)}>
-                            <Image source={require('../assets/icons/arrow.png')} style={{width: 34, height: 22, resizeMode: 'contain'}} />
-                        </TouchableOpacity>
-
-                    </View>
-                )
-            }
+          <TouchableOpacity style={styles.btn} onPress={() => setCurrentIndex(1)}>
+            <Image source={require('../assets/icons/arrow.png')} style={{ width: 34, height: 22, resizeMode: 'contain' }} />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -187,26 +197,51 @@ const MiniGame = () => {
   return (
     <TouchableOpacity activeOpacity={1} style={styles.container} onPress={handleJump}>
       <View style={styles.header}>
-        <Image source={pauseIcon} style={{ width: 32, height: 32 }} />
-        <Text style={styles.timer}>{timer} sec.</Text>
+        <TouchableOpacity
+            style={[styles.btn, { alignSelf: 'flex-end', width: 53, height: 53 }]}
+            onPress={() => setIsPaused((prev) => !prev)}
+          >
+            <Image source={require('../assets/game/pause.png')} style={{ width: 22, height: 26, resizeMode: 'contain' }} />
+          </TouchableOpacity>
         <View style={styles.coinContainer}>
           <Image source={coin} style={styles.coinIcon} />
           <Text style={styles.coinText}>{coins}</Text>
         </View>
       </View>
 
-      {platforms.map((platform, index) => (
-        <>
-          <Image
-            key={`p-${index}`}
-            source={platform.type === 'horizontal' ? horizontalPlatform : verticalPlatform}
-            style={[styles.platform, { left: platform.x, top: platform.y }]}
-          />
-          {platform.hasCoin && (
-            <Image key={`c-${index}`} source={coin} style={[styles.coin, { left: platform.x + 10, top: platform.y - 20 }]} />
-          )}
-        </>
-      ))}
+      {platforms.map((platform, index) => {
+        const isHorizontal = platform.type === 'horizontal';
+        return (
+          <React.Fragment key={`platform-${index}`}>
+            <Image
+              source={isHorizontal ? horizontalPlatform : verticalPlatform}
+              style={[
+                styles.platform,
+                {
+                  left: platform.x + (isHorizontal ? 0 : 6),
+                  top: isHorizontal ? platform.y : platform.y - 50,
+                  width: isHorizontal ? 100 : 18,
+                  height: isHorizontal ? 18 : 100,
+                },
+              ]}
+            />
+
+            {platform.hasCoin && (
+              <Image
+                key={`coin-${index}`}
+                source={coin}
+                style={[
+                  styles.coin,
+                  {
+                    top: isHorizontal ? platform.y - 25 : platform.y - 90,
+                    left: platform.x + (isHorizontal ? 40 : 4),
+                  },
+                ]}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
 
       <Animated.Image
         source={runnerImage}
@@ -217,16 +252,19 @@ const MiniGame = () => {
 };
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    paddingTop: height * 0.07
   },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 20,
     alignItems: 'center',
   },
+
   timer: {
     backgroundColor: '#ff515b',
     color: '#fff',
@@ -236,32 +274,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+
   coinContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+
   coinIcon: {
-    width: 24,
-    height: 24,
+    width: 33,
+    height: 22,
     marginRight: 6,
+    resizeMode: 'contain'
   },
+
   coinText: {
-    fontSize: 18,
+    fontSize: 24,
     color: '#ff515b',
     fontWeight: '600',
   },
+
   platform: {
     width: 60,
     height: 15,
     position: 'absolute',
     resizeMode: 'contain',
   },
+
   coin: {
     width: 22,
     height: 22,
     position: 'absolute',
     resizeMode: 'contain',
   },
+
   runner: {
     width: 50,
     height: 50,
@@ -270,6 +315,24 @@ const styles = StyleSheet.create({
     top: height * 0.6 - 50,
     resizeMode: 'contain',
   },
+
+  text: {
+    fontSize: 18,
+    color: '#000',
+    fontWeight: '500',
+    textAlign: 'left',
+    alignSelf: 'flex-start',
+  },
+
+  btn: {
+    width: 78,
+    height: 53,
+    backgroundColor: '#ff515b',
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
 });
 
 export default MiniGame;
