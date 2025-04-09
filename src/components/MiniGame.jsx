@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, TouchableOpacity, Image, StyleSheet, Dimensions, Text, Animated, Easing, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { View, TouchableOpacity, Image, StyleSheet, Dimensions, Text, Animated, Easing, Alert, Modal } from 'react-native';
 
 const { height } = Dimensions.get('window');
 
@@ -10,7 +9,8 @@ const coin = require('../assets/game/coin.png');
 const runnerImage = require('../assets/game/runner.png');
 
 const MiniGame = () => {
-  const navigation = useNavigation();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalOverVisible, setModalOverVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(1);
   const [platforms, setPlatforms] = useState(generateInitialPlatforms());
   const [runnerY, setRunnerY] = useState(new Animated.Value(0));
@@ -42,7 +42,10 @@ useEffect(() => {
   if (isPaused) return;
 
   moveIntervalRef.current = setInterval(() => {
-    if (gameOver.current) return;
+    if (gameOver.current) {
+      setModalOverVisible(true);
+      return;
+    }
 
     setPlatforms((prevPlatforms) => {
       const updated = prevPlatforms.map((p) => ({ ...p, x: p.x - 4 }));
@@ -164,6 +167,11 @@ useEffect(() => {
     });
   };
 
+  const togglePause = () => {
+    setIsPaused((prev) => !prev);
+    setModalVisible((prev) => !prev);
+  }
+
   if (currentIndex === 0) {
     return (
       <View style={styles.container}>
@@ -199,7 +207,7 @@ useEffect(() => {
       <View style={styles.header}>
         <TouchableOpacity
             style={[styles.btn, { alignSelf: 'flex-end', width: 53, height: 53 }]}
-            onPress={() => setIsPaused((prev) => !prev)}
+            onPress={togglePause}
           >
             <Image source={require('../assets/game/pause.png')} style={{ width: 22, height: 26, resizeMode: 'contain' }} />
           </TouchableOpacity>
@@ -247,6 +255,53 @@ useEffect(() => {
         source={runnerImage}
         style={[styles.runner, { transform: [{ translateY: runnerY }] }]}
       />
+
+      {
+        (isPaused && modalVisible) && (
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={modalVisible}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalBox}>
+                <Text style={styles.modalTitle}>Pause</Text>
+
+                <TouchableOpacity style={styles.modalButton} onPress={togglePause}>
+                  <Text style={styles.modalButtonText}>Continue</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.modalButton} onPress={() => { togglePause(); setCurrentIndex(0); setCoins(0); }}>
+                  <Text style={styles.modalButtonText}>Back Home</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        )
+      }
+
+      {
+        modalOverVisible && (
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={modalOverVisible}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalBox}>
+                <Text style={[styles.modalTitle, { fontWeight: '500', textAlign: 'center' }]}>You were almost there! Try again, success is near!</Text>
+                
+                <Image source={require('../assets/decor/gameover.png')} style={{width: 99, height: height * 0.2, resizeMode: 'contain', marginVertical: 10}} />
+
+                <TouchableOpacity style={styles.modalButton} onPress={() => { setCurrentIndex(0); setModalOverVisible(false); gameOver.current = false; setCoins(0); }}>
+                  <Text style={styles.modalButtonText}>Try again</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        )
+      }
+
     </TouchableOpacity>
   );
 };
@@ -331,6 +386,49 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+
+  modalBox: {
+    backgroundColor: 'white',
+    padding: 30,
+    borderRadius: 10,
+    width: 280,
+    alignItems: 'center',
+  },
+
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#000',
+  },
+
+  modalButton: {
+    backgroundColor: '#ff5b5b',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginVertical: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 
 });

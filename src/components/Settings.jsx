@@ -10,7 +10,6 @@ const Settings = () => {
 
     const resetProgress = () => {
         AsyncStorage.removeItem('favorites')
-            .then(() => AsyncStorage.removeItem('points'))
             .then(() => console.log('Progress reset successfully'))
             .catch((error) => console.error('Failed to reset progress:', error));
     };
